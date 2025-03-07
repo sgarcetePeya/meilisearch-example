@@ -4,19 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
 )
 
 func CreateHandlers(client meilisearch.ServiceManager, index meilisearch.IndexManager) {
-	http.HandleFunc("/search/movies", handleSearch(client))
-	http.HandleFunc("/movies/all", handleGetMovies(client))
+	http.HandleFunc("/search", handleSearch(client))
+	http.HandleFunc("/all", handleGetAll(client))
 	http.HandleFunc("/", handleAddDocument(index))
-	http.HandleFunc("/movies/delete/{id}", handleDeleteDocument(index))
-	http.HandleFunc("/movies/{id}", handleGetDocument(index))
-	http.HandleFunc("/movies/update/{id}", handleUpdateDocument(index))
+	http.HandleFunc("/delete/{id}", handleDeleteDocument(index))
+	http.HandleFunc("/{id}", handleGetDocument(index))
+	http.HandleFunc("/update/{id}", handleUpdateDocument(index))
 }
 
 func handleSearch(client meilisearch.ServiceManager) http.HandlerFunc {
@@ -27,7 +26,7 @@ func handleSearch(client meilisearch.ServiceManager) http.HandlerFunc {
 			return
 		}
 
-		searchRes, err := client.Index("movies").Search(query, &meilisearch.SearchRequest{Limit: 10})
+		searchRes, err := client.Index("campaigns").Search(query, &meilisearch.SearchRequest{Limit: 10})
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Search error: %v", err), http.StatusInternalServerError)
 			return
@@ -41,9 +40,9 @@ func handleSearch(client meilisearch.ServiceManager) http.HandlerFunc {
 	}
 }
 
-func handleGetMovies(client meilisearch.ServiceManager) http.HandlerFunc {
+func handleGetAll(client meilisearch.ServiceManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		searchRes, err := client.Index("movies").Search("", &meilisearch.SearchRequest{})
+		searchRes, err := client.Index("campaigns").Search("", &meilisearch.SearchRequest{})
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error retrieving documents: %v", err), http.StatusInternalServerError)
 			return
@@ -64,15 +63,15 @@ func handleAddDocument(index meilisearch.IndexManager) http.HandlerFunc {
 			return
 		}
 
-		var movie Movie
-		err := json.NewDecoder(r.Body).Decode(&movie)
+		var campaign Campaign
+		err := json.NewDecoder(r.Body).Decode(&campaign)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error decoding document: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		movies := []interface{}{movie}
-		task, err := index.AddDocuments(movies)
+		campaigns := []interface{}{campaign}
+		task, err := index.AddDocuments(campaigns)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error adding document: %v", err), http.StatusInternalServerError)
 			return
@@ -81,7 +80,7 @@ func handleAddDocument(index meilisearch.IndexManager) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		response := map[string]interface{}{
 			"task_uid": task.TaskUID,
-			"document": movie,
+			"document": campaign,
 		}
 		json.NewEncoder(w).Encode(response)
 	}
@@ -101,11 +100,11 @@ func handleDeleteDocument(index meilisearch.IndexManager) http.HandlerFunc {
 			return
 		}
 
-		var movie Movie
+		var campaign Campaign
 
 		documentQuery := &meilisearch.DocumentQuery{}
 
-		err := index.GetDocument(id, documentQuery, &movie)
+		err := index.GetDocument(id, documentQuery, &campaign)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error retrieving document: %v", err), http.StatusInternalServerError)
 			return
@@ -121,7 +120,7 @@ func handleDeleteDocument(index meilisearch.IndexManager) http.HandlerFunc {
 		response := map[string]interface{}{
 			"task_uid":         task.TaskUID,
 			"document_id":      id,
-			"deleted_document": movie,
+			"deleted_document": campaign,
 		}
 		json.NewEncoder(w).Encode(response)
 	}
@@ -141,18 +140,18 @@ func handleGetDocument(index meilisearch.IndexManager) http.HandlerFunc {
 			return
 		}
 
-		var movie Movie
+		var campaign Campaign
 
 		documentQuery := &meilisearch.DocumentQuery{}
 
-		err := index.GetDocument(id, documentQuery, &movie)
+		err := index.GetDocument(id, documentQuery, &campaign)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error retrieving document: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(movie)
+		err = json.NewEncoder(w).Encode(campaign)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
 		}
@@ -173,23 +172,19 @@ func handleUpdateDocument(index meilisearch.IndexManager) http.HandlerFunc {
 			return
 		}
 
-		documentID, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid ID format: %v", err), http.StatusBadRequest)
-			return
-		}
+		documentID := id
 
-		var movie Movie
-		err = json.NewDecoder(r.Body).Decode(&movie)
+		var campaign Campaign
+		err := json.NewDecoder(r.Body).Decode(&campaign)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error decoding document: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		movie.ID = documentID
+		campaign.ID = documentID
 
-		movies := []interface{}{movie}
-		task, err := index.UpdateDocuments(movies)
+		campaigns := []interface{}{campaign}
+		task, err := index.UpdateDocuments(campaigns)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error updating document: %v", err), http.StatusInternalServerError)
 			return
@@ -199,7 +194,7 @@ func handleUpdateDocument(index meilisearch.IndexManager) http.HandlerFunc {
 		response := map[string]interface{}{
 			"task_uid":    task.TaskUID,
 			"document_id": documentID,
-			"document":    movie,
+			"document":    campaign,
 		}
 		json.NewEncoder(w).Encode(response)
 	}

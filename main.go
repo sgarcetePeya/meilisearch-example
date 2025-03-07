@@ -11,20 +11,17 @@ import (
 
 func main() {
 	client := meilisearch.New("http://localhost:7700", meilisearch.WithAPIKey("my_master_key"))
-	index := client.Index("movies")
+	index := client.Index("campaigns")
+	index.UpdateSearchableAttributes(&[]string{"id", "status", "name", "code", "brand", "country"})
 
-	movies := []Movie{
-		NewMovie(1, "Carol", []string{"Romance", "Drama"}),
-		NewMovie(2, "Wonder Woman", []string{"Action", "Adventure"}),
-		NewMovie(3, "Life of Pi", []string{"Adventure", "Drama"}),
-		NewMovie(4, "Mad Max: Fury Road", []string{"Adventure", "Science Fiction"}),
-		NewMovie(5, "Moana", []string{"Fantasy", "Action"}),
-		NewMovie(6, "Philadelphia", []string{"Drama"}),
+	campaigns := []Campaign{
+		NewCampaign("1", "active", "Summer Sale", "SUM2024", "PeYa", "AR", "GE12345", "user1"),
+		NewCampaign("2", "inactive", "Winter Discount", "WIN2024", "Hunger", "EC", "GE67890", "user2"),
 	}
 
 	var documents []interface{}
-	for _, movie := range movies {
-		documents = append(documents, movie)
+	for _, campaign := range campaigns {
+		documents = append(documents, campaign)
 	}
 
 	task, err := index.AddDocuments(documents)
